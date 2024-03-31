@@ -25,3 +25,13 @@ What is working:
 
 This is mostly for learning, don't get too excited.  We finally broke down and
 decided these need to be included in ``makedep``, and here we are.
+
+TODO:
+
+* ``assert`` is for cowards, take them out.
+
+* Move ``!`` operator out of ``defined()`` handler.  On that note...
+
+* Get unary operators working.  On that note...
+
+* Handle functions properly.

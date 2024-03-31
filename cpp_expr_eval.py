@@ -1,5 +1,6 @@
 import re
 
+
 scanner = re.Scanner([
   (r'defined', lambda scanner, token: token),
   (r'[_A-Za-z][_0-9a-zA-Z]*', lambda scanner, token: token),
@@ -17,6 +18,7 @@ scanner = re.Scanner([
   (r'\s+', None),
 ])
 
+
 operate = {
     '!': lambda x: not x,
     '*': lambda x, y: x * y,
@@ -27,11 +29,9 @@ operate = {
     '<': lambda x, y: x < y,
     '&&': lambda x, y: x and y,
     '||': lambda x, y: x or y,
-    None: None,
 }
 
 
-# TODO: Shift all these up so that None is zero
 rank = {
     '(': 12,
     '!': 11,
@@ -109,9 +109,7 @@ def cpp_eval(expr, macros=None, debug=None):
                 assert tok == ')'
 
         # XXX: Not exactly correct but good enough for now
-        # NOTE: `elif tok and ...` is to handle the None token, which may be
-        # making things unnecessarily complicated.
-        elif tok and (tok.isdigit() or tok.isidentifier()):
+        elif tok.isdigit() or tok.isidentifier():
             try:
                 value = int(tok)
             except ValueError:
