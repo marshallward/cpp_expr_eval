@@ -12,8 +12,14 @@ scanner = re.Scanner([
   (r'\+', lambda scanner, token: token),
   (r'-', lambda scanner, token: token),
   (r'!', lambda scanner, token: token),
+  (r'>>', lambda scanner, token: token),
+  (r'>', lambda scanner, token: token),
+  (r'<<', lambda scanner, token: token),
+  (r'<', lambda scanner, token: token),
   (r'&&', lambda scanner, token: token),
+  (r'&', lambda scanner, token: token),
   (r'\|\|', lambda scanner, token: token),
+  (r'\|', lambda scanner, token: token),
   (r'^\#if', None),
   (r'\s+', None),
 ])
@@ -25,8 +31,13 @@ operate = {
     '/': lambda x, y: x // y,
     '+': lambda x, y: x + y,
     '-': lambda x, y: x - y,
+    '>>': lambda x, y: x >> y,
+    '<<': lambda x, y: x << y,
     '>': lambda x, y: x > y,
     '<': lambda x, y: x < y,
+    '&': lambda x, y: x & y,
+    '^': lambda x, y: x ^ y,
+    '|': lambda x, y: x | y,
     '&&': lambda x, y: x and y,
     '||': lambda x, y: x or y,
 }
@@ -39,16 +50,16 @@ rank = {
     '/': 10,
     '+': 9,
     '-': 9,
-    #'>>': 8,
-    #'<<': 8,
+    '>>': 8,
+    '<<': 8,
     '>': 7,
     '<': 7,
-    #'&': 6,
-    #'^': 5,
-    #'|': 4,
+    '&': 6,
+    '^': 5,
+    '|': 4,
     '&&': 2,
     '||': 2,
-    ')': 1, # ??
+    ')': 1,     # XXX: I am not sure about this, but it works...
     '$': 1,
     None: 0,
 }
@@ -70,10 +81,10 @@ def cpp_eval(expr, macros=None, debug=None):
         print('Unscanned:', remainder)
         raise
 
-    # Add an "end of line" character to force evaluation of the final state.
+    # Add an "end of line" character to force evaluation of the final stack.
     results.append('$')
 
-    # Shunting yard method
+    # Shunting yard parser
     stack = []
     prior_op = None
 
@@ -85,41 +96,51 @@ def cpp_eval(expr, macros=None, debug=None):
             print('prior_op:', prior_op)
 
         # Evaluate "defined()" statements
+        # TODO: Create an "operator" for this...?
         if tok == 'defined':
             tok = next(tokens)
-    
+
             parens = tok == '('
             if parens:
                 tok = next(tokens)
-    
-            value = macros.get(tok, None)
-    
+
+            # "Identifiers that are not macros, which are all considered to be
+            # the number zero." (CPP manual, 4.2.2)
+            value = macros.get(tok, 0)
+
             # Negation
+            # (Actually the unary prefix unary handler, I suppose.)
             while prior_op == '!':
                 op = stack.pop()
                 assert op == '!'
                 value = operate[op](value)
                 prior_op = stack[-1] if stack else None
-                assert prior_op in ('&&', '||', '!', None)
-    
+
             stack.append(value)
-    
+
             if parens:
                 tok = next(tokens)
                 assert tok == ')'
 
-        # XXX: Not exactly correct but good enough for now
-        elif tok.isdigit() or tok.isidentifier():
-            try:
-                value = int(tok)
-            except ValueError:
-                value = macros.get(tok, None)
+        elif tok.isdigit():
+            value = int(tok)
+            stack.append(value)
+
+        elif tok.isidentifier():
+            # "Identifiers that are not macros, which are all considered to be
+            # the number zero." (CPP manual, 4.2.2)
+            value = macros.get(tok, 0)
             stack.append(value)
 
         elif tok in rank.keys():
             while rank[tok] <= rank[prior_op]:
                 if debug:
                     print('  while stack:', stack)
+
+                # Skip unary prefix operators (just ! at the moment)
+                # NOTE: Maybe a sign that ! does not belong in this block.
+                if tok == '!':
+                    break
 
                 second = stack.pop()
                 op = stack.pop()
@@ -145,7 +166,7 @@ def cpp_eval(expr, macros=None, debug=None):
                 stack.append(tok)
                 prior_op = tok
 
-                if prior_op == '(':
+                if prior_op in ('(',):
                     prior_op = None
 
         else:
@@ -164,7 +185,8 @@ def cpp_eval(expr, macros=None, debug=None):
 
     return value
 
-### Some example expressions to evaluate
+
+# Some example expressions to evaluate
 
 macros = {
     'a': True,
@@ -184,6 +206,7 @@ examples = [
     'defined(a)',
     'defined a',
     '!defined(a)',
+    '!!defined(a)',
     'defined(a) && defined b',
     'defined(a) && !defined b',
     '!defined(a) && defined b',
@@ -202,6 +225,10 @@ examples = [
     'defined(a) && defined(b) || !defined c && defined(d)',
     '(defined a || defined b) && defined c',
     '(defined a || defined b) && defined d',
+    '2 > 3',
+    '2 >> 3',
+    '2 < 3',
+    '2 << 3',
 ]
 
 for expr in examples:
