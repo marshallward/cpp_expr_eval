@@ -76,12 +76,13 @@ def cpp_eval(expr, macros=None, debug=None):
 
     # Abort if any characters are not tokenized
     if remainder:
-        print('Tokens:', results)
         print('There are untokenized characters!')
+        print('Expression:', repr(expr))
+        print('Tokens:', results)
         print('Unscanned:', remainder)
         raise
 
-    # Add an "end of line" character to force evaluation of the final stack.
+    # Add an "end of line" character to force evaluation of the final tokens.
     results.append('$')
 
     # Shunting yard parser
